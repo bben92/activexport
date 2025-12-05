@@ -1,0 +1,21 @@
+# Sensitive files - NEVER COMMIT
+.env
+*.env
+
+# Strava tokens
+strava_tokens.json
+
+# Personal data
+input/
+output/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+
+# Cache
+.cache/
+*.log
