@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Strava activities fetching script via API
+ActivExport - Fetch activities from Strava API
 Fetches all activities (complete history) and exports to multiple formats
 """
 
@@ -11,7 +11,7 @@ import time
 import argparse
 from datetime import datetime
 import requests
-from strava_auth import get_valid_access_token
+from activexport_auth import get_valid_access_token
 
 # Configuration
 DEFAULT_OUTPUT_DIR = './output'
@@ -25,7 +25,7 @@ RATE_LIMIT_DAY = 1000
 def parse_arguments():
     """Parse command-line arguments"""
     parser = argparse.ArgumentParser(
-        description='Fetch all Strava activities via API and export to multiple formats.',
+        description='Fetch all activities from Strava API and export to multiple formats.',
         epilog='''Examples:
   %(prog)s
   %(prog)s -f json csv
@@ -74,7 +74,7 @@ def fetch_all_activities(page_size=200):
     request_count = 0
 
     print("\n" + "="*60)
-    print("FETCHING STRAVA ACTIVITIES")
+    print("FETCHING ACTIVITIES FROM STRAVA")
     print("="*60 + "\n")
 
     while True:
@@ -207,7 +207,7 @@ def export_to_markdown(activities, filepath):
 
     with open(filepath, 'w', encoding='utf-8') as f:
         # Header
-        f.write("# Strava Activities Export\n\n")
+        f.write("# ActivExport - Activities Export\n\n")
         f.write(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         f.write(f"**Total Activities:** {len(activities)}\n\n")
 
@@ -280,15 +280,15 @@ def save_activities(activities, formats, output_dir):
 
     # Export to each format
     if 'json' in normalized_formats:
-        filepath = os.path.join(output_dir, f'strava_activities_{timestamp}.json')
+        filepath = os.path.join(output_dir, f'activexport_activities_{timestamp}.json')
         export_to_json(activities, filepath)
 
     if 'csv' in normalized_formats:
-        filepath = os.path.join(output_dir, f'strava_activities_{timestamp}.csv')
+        filepath = os.path.join(output_dir, f'activexport_activities_{timestamp}.csv')
         export_to_csv(activities, filepath)
 
     if 'markdown' in normalized_formats:
-        filepath = os.path.join(output_dir, f'strava_activities_{timestamp}.md')
+        filepath = os.path.join(output_dir, f'activexport_activities_{timestamp}.md')
         export_to_markdown(activities, filepath)
 
     if normalized_formats:

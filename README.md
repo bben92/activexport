@@ -1,4 +1,8 @@
-# Strava API - Activity Extraction Tool
+# ActivExport - Strava Activity Extraction Tool
+
+<p align="center">
+  <img src="ActivExport_logo.png" alt="ActivExport Logo" width="200"/>
+</p>
 
 **Version:** 2.0
 **Date:** December 2025
@@ -52,23 +56,23 @@ These modules will be installed automatically via `requirements.txt`.
 
 ### Step 1: Clone/Download the Project
 
-Place the `strava_api/` directory wherever you want.
+Place the `activexport/` directory wherever you want.
 
 ```
-strava_api/
-├── .env.example                    # Configuration file template
-├── .gitignore                      # Files to ignore (Git)
-├── requirements.txt                # Python dependencies
-├── strava_auth.py                  # Authentication script
-├── strava_fetch_activities.py      # Fetch activities
-├── strava_get_activity_details.py  # Activity details
-└── README.md                       # This documentation
+activexport/
+├── .env.example                        # Configuration file template
+├── .gitignore                          # Files to ignore (Git)
+├── requirements.txt                    # Python dependencies
+├── activexport_auth.py                 # Authentication script
+├── activexport_fetch_activities.py     # Fetch activities
+├── activexport_get_activity_details.py # Activity details
+└── README.md                           # This documentation
 ```
 
 ### Step 2: Install Python Dependencies
 
 ```bash
-cd strava_api
+cd activexport
 pip install -r requirements.txt
 ```
 
@@ -131,7 +135,7 @@ Client Secret:      [an alphanumeric string]
 
 **1. Create the `.env` file**
 
-In the `strava_api/` directory, create a file named `.env` (without extension).
+In the `activexport/` directory, create a file named `.env` (without extension).
 
 **On Windows:**
 ```bash
@@ -181,7 +185,7 @@ The `.env` file is automatically protected by `.gitignore`.
 **1. Run the authentication script**
 
 ```bash
-python strava_auth.py
+python activexport_auth.py
 ```
 
 **2. What will happen?**
@@ -217,12 +221,12 @@ AUTHENTICATION SUCCESSFUL!
 Athlete: [Your Name]
 Token expires at: [Date]
 
-Tokens saved to: strava_tokens.json
+Tokens saved to: activexport_tokens.json
 ```
 
 **5. Created files**
 
-A `strava_tokens.json` file has been created automatically. It contains your access tokens.
+A `activexport_tokens.json` file has been created automatically. It contains your access tokens.
 
 ⚠️ **NEVER share this file** (protected by `.gitignore`).
 
@@ -231,7 +235,7 @@ A `strava_tokens.json` file has been created automatically. It contains your acc
 ### Step 4: Test the Connection
 
 ```bash
-python strava_auth.py test
+python activexport_auth.py test
 ```
 
 **Expected result:**
@@ -263,8 +267,8 @@ API ready to fetch your activities!
 Display help for any script:
 
 ```bash
-python strava_fetch_activities.py --help
-python strava_get_activity_details.py --help
+python activexport_fetch_activities.py --help
+python activexport_get_activity_details.py --help
 ```
 
 ---
@@ -274,7 +278,7 @@ python strava_get_activity_details.py --help
 #### Basic Usage (Display Only)
 
 ```bash
-python strava_fetch_activities.py
+python activexport_fetch_activities.py
 ```
 
 **What the script does:**
@@ -314,25 +318,25 @@ Global statistics:
 
 **Export to JSON:**
 ```bash
-python strava_fetch_activities.py -f json
+python activexport_fetch_activities.py -f json
 ```
-Creates: `./output/strava_activities_YYYYMMDD_HHMMSS.json`
+Creates: `./output/activexport_activities_YYYYMMDD_HHMMSS.json`
 
 **Export to CSV:**
 ```bash
-python strava_fetch_activities.py -f csv
+python activexport_fetch_activities.py -f csv
 ```
-Creates: `./output/strava_activities_YYYYMMDD_HHMMSS.csv`
+Creates: `./output/activexport_activities_YYYYMMDD_HHMMSS.csv`
 
 **Export to Markdown:**
 ```bash
-python strava_fetch_activities.py -f md
+python activexport_fetch_activities.py -f md
 ```
-Creates: `./output/strava_activities_YYYYMMDD_HHMMSS.md`
+Creates: `./output/activexport_activities_YYYYMMDD_HHMMSS.md`
 
 **Export to multiple formats:**
 ```bash
-python strava_fetch_activities.py -f json -f csv -f md
+python activexport_fetch_activities.py -f json -f csv -f md
 ```
 Creates all 3 files simultaneously.
 
@@ -341,7 +345,7 @@ Creates all 3 files simultaneously.
 #### Custom Output Directory
 
 ```bash
-python strava_fetch_activities.py -f json -o ./my_exports/
+python activexport_fetch_activities.py -f json -o ./my_exports/
 ```
 
 Saves the JSON file to `./my_exports/` instead of `./output/`.
@@ -351,20 +355,20 @@ Saves the JSON file to `./my_exports/` instead of `./output/`.
 ### 2. Search for Activities by Name
 
 ```bash
-python strava_fetch_activities.py "search term"
+python activexport_fetch_activities.py "search term"
 ```
 
 **Examples:**
 
 ```bash
 # Find all "Sancy" trails
-python strava_fetch_activities.py "sancy"
+python activexport_fetch_activities.py "sancy"
 
 # Find all "Team RM" outings
-python strava_fetch_activities.py "Team RM"
+python activexport_fetch_activities.py "Team RM"
 
 # Find and export to JSON
-python strava_fetch_activities.py "maines" -f json
+python activexport_fetch_activities.py "maines" -f json
 ```
 
 **Example output:**
@@ -386,12 +390,12 @@ When using `-f`, only the matching activities are exported.
 #### Basic Usage (Display Only)
 
 ```bash
-python strava_get_activity_details.py <activity_id>
+python activexport_get_activity_details.py <activity_id>
 ```
 
 **Example:**
 ```bash
-python strava_get_activity_details.py 6018412458
+python activexport_get_activity_details.py 6018412458
 ```
 
 **Output:**
@@ -421,24 +425,24 @@ EQUIPMENT:
 
 **Export to JSON:**
 ```bash
-python strava_get_activity_details.py 6018412458 -f json
+python activexport_get_activity_details.py 6018412458 -f json
 ```
 Creates: `./output/activity_6018412458.json`
 
 **Export to Markdown:**
 ```bash
-python strava_get_activity_details.py 6018412458 -f md
+python activexport_get_activity_details.py 6018412458 -f md
 ```
 Creates: `./output/activity_6018412458.md`
 
 **Export to both:**
 ```bash
-python strava_get_activity_details.py 6018412458 -f json -f md
+python activexport_get_activity_details.py 6018412458 -f json -f md
 ```
 
 **Custom output directory:**
 ```bash
-python strava_get_activity_details.py 6018412458 -f json -o ./my_data/
+python activexport_get_activity_details.py 6018412458 -f json -o ./my_data/
 ```
 
 ---
@@ -543,31 +547,31 @@ date,name,type,distance_km,elevation_m,moving_time,elapsed_time,avg_pace,avg_hr,
 
 ## 📚 Available Scripts
 
-### `strava_auth.py`
+### `activexport_auth.py`
 
 **Function:** OAuth2 authentication management
 
 **Commands:**
 ```bash
-python strava_auth.py        # Initial authentication
-python strava_auth.py test   # Test the connection
+python activexport_auth.py        # Initial authentication
+python activexport_auth.py test   # Test the connection
 ```
 
 **Features:**
 - Opens browser for Strava authorization
 - Exchanges authorization code for tokens
 - Automatically refreshes expired tokens
-- Saves tokens to `strava_tokens.json`
+- Saves tokens to `activexport_tokens.json`
 
 ---
 
-### `strava_fetch_activities.py`
+### `activexport_fetch_activities.py`
 
 **Function:** Fetch all activities and export to multiple formats
 
 **Usage:**
 ```bash
-python strava_fetch_activities.py [OPTIONS] [SEARCH]
+python activexport_fetch_activities.py [OPTIONS] [SEARCH]
 ```
 
 **Options:**
@@ -578,19 +582,19 @@ python strava_fetch_activities.py [OPTIONS] [SEARCH]
 **Examples:**
 ```bash
 # Display only (no export)
-python strava_fetch_activities.py
+python activexport_fetch_activities.py
 
 # Export to JSON
-python strava_fetch_activities.py -f json
+python activexport_fetch_activities.py -f json
 
 # Export to all formats
-python strava_fetch_activities.py -f json -f csv -f md
+python activexport_fetch_activities.py -f json -f csv -f md
 
 # Search and export
-python strava_fetch_activities.py "trail" -f json
+python activexport_fetch_activities.py "trail" -f json
 
 # Custom output directory
-python strava_fetch_activities.py -f json -o ./my_exports/
+python activexport_fetch_activities.py -f json -o ./my_exports/
 ```
 
 **Features:**
@@ -604,13 +608,13 @@ python strava_fetch_activities.py -f json -o ./my_exports/
 
 ---
 
-### `strava_get_activity_details.py`
+### `activexport_get_activity_details.py`
 
 **Function:** Complete details of a specific activity
 
 **Usage:**
 ```bash
-python strava_get_activity_details.py ACTIVITY_ID [OPTIONS]
+python activexport_get_activity_details.py ACTIVITY_ID [OPTIONS]
 ```
 
 **Options:**
@@ -621,16 +625,16 @@ python strava_get_activity_details.py ACTIVITY_ID [OPTIONS]
 **Examples:**
 ```bash
 # Display only
-python strava_get_activity_details.py 6018412458
+python activexport_get_activity_details.py 6018412458
 
 # Export to JSON
-python strava_get_activity_details.py 6018412458 -f json
+python activexport_get_activity_details.py 6018412458 -f json
 
 # Export to JSON and Markdown
-python strava_get_activity_details.py 6018412458 -f json -f md
+python activexport_get_activity_details.py 6018412458 -f json -f md
 
 # Custom output directory
-python strava_get_activity_details.py 6018412458 -f json -o ./data/
+python activexport_get_activity_details.py 6018412458 -f json -o ./data/
 ```
 
 **Extracted data:**
@@ -648,21 +652,21 @@ python strava_get_activity_details.py 6018412458 -f json -o ./data/
 ## 📁 Project Structure
 
 ```
-strava_api/
-├── .env                             # ⚠️ Credentials (DO NOT COMMIT)
-├── .env.example                     # .env template
-├── .gitignore                       # Sensitive files protection
-├── requirements.txt                 # Python dependencies
-├── strava_tokens.json               # ⚠️ OAuth2 tokens (DO NOT COMMIT)
-├── strava_auth.py                   # OAuth2 authentication
-├── strava_fetch_activities.py       # Fetch activities
-├── strava_get_activity_details.py   # Activity details
-└── README.md                        # Documentation
+activexport/
+├── .env                                # ⚠️ Credentials (DO NOT COMMIT)
+├── .env.example                        # .env template
+├── .gitignore                          # Sensitive files protection
+├── requirements.txt                    # Python dependencies
+├── activexport_tokens.json             # ⚠️ OAuth2 tokens (DO NOT COMMIT)
+├── activexport_auth.py                 # OAuth2 authentication
+├── activexport_fetch_activities.py     # Fetch activities
+├── activexport_get_activity_details.py # Activity details
+└── README.md                           # Documentation
 
 output/                              # Default output directory
-├── strava_activities_YYYYMMDD_HHMMSS.json
-├── strava_activities_YYYYMMDD_HHMMSS.csv
-├── strava_activities_YYYYMMDD_HHMMSS.md
+├── activexport_activities_YYYYMMDD_HHMMSS.json
+├── activexport_activities_YYYYMMDD_HHMMSS.csv
+├── activexport_activities_YYYYMMDD_HHMMSS.md
 ├── activity_XXXXXXXXX.json
 └── activity_XXXXXXXXX.md
 ```
@@ -670,7 +674,7 @@ output/                              # Default output directory
 ### Sensitive Files (NEVER COMMIT)
 
 - `.env`: Your API credentials
-- `strava_tokens.json`: Your access tokens
+- `activexport_tokens.json`: Your access tokens
 - `output/`: Your personal activity data
 
 These files are automatically protected by `.gitignore`.
@@ -685,7 +689,7 @@ These files are automatically protected by `.gitignore`.
 
 ✅ **Good news:** Refresh is AUTOMATIC!
 
-The `strava_auth.py` script contains the `get_valid_access_token()` function which:
+The `activexport_auth.py` script contains the `get_valid_access_token()` function which:
 1. Checks if the token is expired
 2. Refreshes it automatically if necessary
 3. Saves the new token
@@ -702,7 +706,7 @@ If you want to revoke application access:
 
 To reactivate, simply run again:
 ```bash
-python strava_auth.py
+python activexport_auth.py
 ```
 
 ---
@@ -726,7 +730,7 @@ pip install -r requirements.txt
 
 **Solution:**
 ```bash
-python strava_auth.py
+python activexport_auth.py
 ```
 
 ---
@@ -738,11 +742,11 @@ python strava_auth.py
 **Solution:**
 ```bash
 # Delete the tokens file
-rm strava_tokens.json  # Linux/Mac
-del strava_tokens.json  # Windows
+rm activexport_tokens.json  # Linux/Mac
+del activexport_tokens.json  # Windows
 
 # Re-authenticate
-python strava_auth.py
+python activexport_auth.py
 ```
 
 ---
@@ -839,7 +843,7 @@ Or open directly in Google Sheets (automatic UTF-8 detection).
 
 **Files to NEVER share/commit:**
 - `.env`: Your credentials
-- `strava_tokens.json`: Your access tokens
+- `activexport_tokens.json`: Your access tokens
 - `output/`: Your personal activity data
 
 The `.gitignore` file automatically protects these files if you use Git.
@@ -903,23 +907,23 @@ The application only requests:
 1. Install dependencies (`pip install -r requirements.txt`)
 2. Create Strava application
 3. Configure `.env`
-4. Authenticate (`python strava_auth.py`)
-5. Test (`python strava_auth.py test`)
-6. Fetch activities (`python strava_fetch_activities.py`)
+4. Authenticate (`python activexport_auth.py`)
+5. Test (`python activexport_auth.py test`)
+6. Fetch activities (`python activexport_fetch_activities.py`)
 
 **Daily usage:**
 ```bash
 # Display activities
-python strava_fetch_activities.py
+python activexport_fetch_activities.py
 
 # Export to JSON and CSV
-python strava_fetch_activities.py -f json -f csv
+python activexport_fetch_activities.py -f json -f csv
 
 # Search and export
-python strava_fetch_activities.py "trail" -f json
+python activexport_fetch_activities.py "trail" -f json
 
 # Get activity details
-python strava_get_activity_details.py 6018412458 -f md
+python activexport_get_activity_details.py 6018412458 -f md
 ```
 
 **Maintenance:**

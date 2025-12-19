@@ -2,8 +2,8 @@
 .env
 *.env
 
-# Strava tokens
-strava_tokens.json
+# ActivExport tokens
+activexport_tokens.json
 
 # Personal data
 input/
