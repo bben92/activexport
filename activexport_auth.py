@@ -43,7 +43,7 @@ class CallbackHandler(BaseHTTPRequestHandler):
             self.wfile.write(b"""
                 <html>
                 <body style="font-family: Arial; text-align: center; padding: 50px;">
-                    <h1 style="color: #FC4C02;">ActivExport authentication successful!</h1>
+                    <h1 style="color: #FC4C02;">Authentication successful!</h1>
                     <p>You can close this window and return to the terminal.</p>
                 </body>
                 </html>
@@ -140,7 +140,7 @@ def initial_authentication():
     Opens browser and starts local server to retrieve the code
     """
     print("\n" + "="*60)
-    print("ACTIVEXPORT - STRAVA AUTHENTICATION")
+    print("STRAVA AUTHENTICATION")
     print("="*60)
 
     # Generate authorization URL
@@ -196,7 +196,7 @@ def initial_authentication():
 def test_api_connection():
     """Tests API connection by fetching athlete profile"""
     print("\n" + "="*60)
-    print("ACTIVEXPORT - STRAVA API CONNECTION TEST")
+    print("STRAVA API CONNECTION TEST")
     print("="*60 + "\n")
 
     access_token = get_valid_access_token()

@@ -143,7 +143,7 @@ def export_to_json(activities, filepath):
         'metadata': {
             'export_date': datetime.now().isoformat(),
             'total_activities': len(activities),
-            'source': 'ActivExport (Strava API v3)'
+            'source': 'Strava API v3'
         },
         'activities': activities
     }
