@@ -1,5 +1,9 @@
 # ActivExport - Strava Activity Extraction Tool
 
+<p align="center">
+  <img src="ActivExport_logo.png" alt="ActivExport Logo" width="200"/>
+</p>
+
 **Version:** 2.0
 **Date:** December 2025
 **Author:** Benoit Boucher
