@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Fetches complete details of a Strava activity via API
+ActivExport - Fetch Strava activity details
 Exports activity details to multiple formats
 """
 
@@ -9,7 +9,7 @@ import json
 import argparse
 from datetime import datetime
 import requests
-from strava_auth import get_valid_access_token
+from activexport_auth import get_valid_access_token
 
 # Configuration
 DEFAULT_OUTPUT_DIR = './output'
@@ -19,7 +19,7 @@ API_BASE = 'https://www.strava.com/api/v3'
 def parse_arguments():
     """Parse command-line arguments"""
     parser = argparse.ArgumentParser(
-        description='Fetch detailed information for a specific Strava activity.',
+        description='Fetch detailed information for a specific activity.',
         epilog='''Examples:
   %(prog)s 6018412458
   %(prog)s 6018412458 -f json md
@@ -29,7 +29,7 @@ def parse_arguments():
 
     parser.add_argument(
         'activity_id',
-        help='Strava activity ID'
+        help='Activity ID'
     )
 
     parser.add_argument(

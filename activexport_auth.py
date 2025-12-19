@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Strava API OAuth2 authentication script
+ActivExport - Strava OAuth2 authentication
 Handles initial authorization and automatic token refresh
 """
 
@@ -20,7 +20,7 @@ load_dotenv()
 CLIENT_ID = os.getenv('STRAVA_CLIENT_ID')
 CLIENT_SECRET = os.getenv('STRAVA_CLIENT_SECRET')
 REDIRECT_URI = 'http://localhost:8000/callback'
-TOKEN_FILE = 'strava_tokens.json'
+TOKEN_FILE = 'activexport_tokens.json'
 
 # Strava endpoints
 AUTH_URL = 'https://www.strava.com/oauth/authorize'
@@ -43,7 +43,7 @@ class CallbackHandler(BaseHTTPRequestHandler):
             self.wfile.write(b"""
                 <html>
                 <body style="font-family: Arial; text-align: center; padding: 50px;">
-                    <h1 style="color: #FC4C02;">Strava authentication successful!</h1>
+                    <h1 style="color: #FC4C02;">ActivExport authentication successful!</h1>
                     <p>You can close this window and return to the terminal.</p>
                 </body>
                 </html>
@@ -140,7 +140,7 @@ def initial_authentication():
     Opens browser and starts local server to retrieve the code
     """
     print("\n" + "="*60)
-    print("STRAVA API AUTHENTICATION")
+    print("ACTIVEXPORT - STRAVA AUTHENTICATION")
     print("="*60)
 
     # Generate authorization URL
@@ -196,7 +196,7 @@ def initial_authentication():
 def test_api_connection():
     """Tests API connection by fetching athlete profile"""
     print("\n" + "="*60)
-    print("STRAVA API CONNECTION TEST")
+    print("ACTIVEXPORT - STRAVA API CONNECTION TEST")
     print("="*60 + "\n")
 
     access_token = get_valid_access_token()
@@ -243,7 +243,7 @@ if __name__ == '__main__':
     else:
         # Initial authentication mode
         if initial_authentication():
-            print("\nNext step: python strava_auth.py test")
+            print("\nNext step: python activexport_auth.py test")
         else:
             print("\n[X] Authentication failed")
             sys.exit(1)

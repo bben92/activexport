@@ -1,4 +1,4 @@
-# Dépendances Python pour Strava API
+# Dépendances Python pour ActivExport
 
 # Requêtes HTTP
 requests>=2.31.0
