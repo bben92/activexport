@@ -1,30 +1,27 @@
 #!/usr/bin/env python3
 """
-ActivExport - Strava OAuth2 authentication
+ActivExport - OAuth2 authentication
 Handles initial authorization and automatic token refresh
+Supports multiple providers: Strava and Decathlon Coach
 """
 
-import os
-import json
+import argparse
+import sys
 import time
 import webbrowser
-from urllib.parse import urlencode
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 import requests
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
-
-CLIENT_ID = os.getenv('STRAVA_CLIENT_ID')
-CLIENT_SECRET = os.getenv('STRAVA_CLIENT_SECRET')
-REDIRECT_URI = 'http://localhost:8000/callback'
-TOKEN_FILE = 'activexport_tokens.json'
-
-# Strava endpoints
-AUTH_URL = 'https://www.strava.com/oauth/authorize'
-TOKEN_URL = 'https://www.strava.com/oauth/token'
+from activexport_providers import (
+    PROVIDERS,
+    get_provider_config,
+    get_authorization_url,
+    exchange_code_for_token,
+    save_tokens,
+    get_valid_access_token,
+    get_auth_headers,
+)
 
 
 class CallbackHandler(BaseHTTPRequestHandler):
@@ -57,103 +54,28 @@ class CallbackHandler(BaseHTTPRequestHandler):
         pass
 
 
-def get_authorization_url():
-    """Generates Strava authorization URL"""
-    params = {
-        'client_id': CLIENT_ID,
-        'redirect_uri': REDIRECT_URI,
-        'response_type': 'code',
-        'scope': 'read,activity:read_all,profile:read_all',
-        'approval_prompt': 'auto'
-    }
-    return f"{AUTH_URL}?{urlencode(params)}"
-
-
-def exchange_code_for_token(auth_code):
-    """Exchanges authorization code for access token"""
-    payload = {
-        'client_id': CLIENT_ID,
-        'client_secret': CLIENT_SECRET,
-        'code': auth_code,
-        'grant_type': 'authorization_code'
-    }
-
-    response = requests.post(TOKEN_URL, data=payload)
-    response.raise_for_status()
-    return response.json()
-
-
-def refresh_access_token(refresh_token):
-    """Refreshes expired access token"""
-    payload = {
-        'client_id': CLIENT_ID,
-        'client_secret': CLIENT_SECRET,
-        'refresh_token': refresh_token,
-        'grant_type': 'refresh_token'
-    }
-
-    response = requests.post(TOKEN_URL, data=payload)
-    response.raise_for_status()
-    return response.json()
-
-
-def save_tokens(token_data):
-    """Saves tokens to JSON file"""
-    with open(TOKEN_FILE, 'w') as f:
-        json.dump(token_data, f, indent=2)
-    print(f"Tokens saved to {TOKEN_FILE}")
-
-
-def load_tokens():
-    """Loads tokens from JSON file"""
-    if not os.path.exists(TOKEN_FILE):
-        return None
-
-    with open(TOKEN_FILE, 'r') as f:
-        return json.load(f)
-
-
-def get_valid_access_token():
-    """
-    Returns a valid access token
-    Automatically refreshes if expired
-    """
-    tokens = load_tokens()
-
-    if not tokens:
-        print("[X] No token found. Run initial authentication first.")
-        return None
-
-    # Check if token is expired (with 5 min margin)
-    if time.time() >= (tokens['expires_at'] - 300):
-        print("Token expired, refreshing...")
-        tokens = refresh_access_token(tokens['refresh_token'])
-        save_tokens(tokens)
-        print("Token successfully refreshed")
-
-    return tokens['access_token']
-
-
-def initial_authentication():
+def initial_authentication(provider):
     """
     Initial authentication process
     Opens browser and starts local server to retrieve the code
     """
+    config = get_provider_config(provider)
+
     print("\n" + "="*60)
-    print("STRAVA AUTHENTICATION")
+    print(f"{config['label'].upper()} AUTHENTICATION")
     print("="*60)
 
     # Generate authorization URL
-    auth_url = get_authorization_url()
+    auth_url = get_authorization_url(provider)
 
-    print(f"\n[1] Opening browser for Strava authorization...")
+    print(f"\n[1] Opening browser for {config['label']} authorization...")
     print(f"    URL: {auth_url}\n")
 
     # Open browser
     webbrowser.open(auth_url)
 
     print("[2] Local server started on http://localhost:8000")
-    print("    Waiting for Strava redirect...\n")
+    print("    Waiting for redirect...\n")
 
     # Start local HTTP server
     server = HTTPServer(('localhost', 8000), CallbackHandler)
@@ -173,17 +95,20 @@ def initial_authentication():
 
     try:
         # Exchange code for tokens
-        token_data = exchange_code_for_token(server.auth_code)
+        token_data = exchange_code_for_token(provider, server.auth_code)
 
         # Save tokens
-        save_tokens(token_data)
+        save_tokens(provider, token_data)
 
         print("="*60)
         print("AUTHENTICATION SUCCESSFUL!")
         print("="*60)
-        print(f"\nAthlete: {token_data['athlete']['firstname']} {token_data['athlete']['lastname']}")
+
+        athlete = token_data.get('athlete')
+        if athlete:
+            print(f"\nAthlete: {athlete.get('firstname', '')} {athlete.get('lastname', '')}")
         print(f"Token expires at: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(token_data['expires_at']))}")
-        print(f"\nTokens saved to: {TOKEN_FILE}")
+        print(f"\nTokens saved to: {config['token_file']}")
         print("Tokens will be automatically refreshed when needed\n")
 
         return True
@@ -193,39 +118,42 @@ def initial_authentication():
         return False
 
 
-def test_api_connection():
-    """Tests API connection by fetching athlete profile"""
+def test_api_connection(provider):
+    """Tests API connection by fetching the user/athlete profile"""
+    config = get_provider_config(provider)
+
     print("\n" + "="*60)
-    print("STRAVA API CONNECTION TEST")
+    print(f"{config['label'].upper()} API CONNECTION TEST")
     print("="*60 + "\n")
 
-    access_token = get_valid_access_token()
+    access_token = get_valid_access_token(provider)
 
     if not access_token:
         print("[X] Unable to get valid token")
         return False
 
-    headers = {'Authorization': f'Bearer {access_token}'}
+    headers = get_auth_headers(provider, access_token)
 
     try:
-        # Fetch athlete profile
-        response = requests.get('https://www.strava.com/api/v3/athlete', headers=headers)
+        # Fetch profile (athlete for Strava, me for Decathlon Coach)
+        response = requests.get(f"{config['api_base']}/{config['profile_path']}", headers=headers)
         response.raise_for_status()
-        athlete = response.json()
+        profile = response.json()
 
         print("API connection successful!\n")
-        print("Athlete Profile:")
-        print(f"   Name: {athlete['firstname']} {athlete['lastname']}")
-        print(f"   City: {athlete.get('city', 'N/A')}")
-        print(f"   Country: {athlete.get('country', 'N/A')}")
-        print(f"   Weight: {athlete.get('weight', 'N/A')} kg")
-        print(f"   Shoes: {athlete.get('shoes', [])}")
+        print("Profile:")
+        if provider == 'strava':
+            print(f"   Name: {profile.get('firstname', '')} {profile.get('lastname', '')}")
+            print(f"   City: {profile.get('city', 'N/A')}")
+            print(f"   Country: {profile.get('country', 'N/A')}")
+            print(f"   Weight: {profile.get('weight', 'N/A')} kg")
+        else:
+            print(f"   ID: {profile.get('id', 'N/A')}")
+            print(f"   Country: {profile.get('country', 'N/A')}")
+            print(f"   Language: {profile.get('language', 'N/A')}")
+            print(f"   Birth date: {profile.get('birthDate', 'N/A')}")
 
-        # Count activities
-        response = requests.get('https://www.strava.com/api/v3/athlete/activities',
-                              headers=headers, params={'per_page': 1})
         print(f"\nAPI ready to fetch your activities!")
-        print(f"   Limits: 100 req/15min, 1000 req/day (read)")
 
         return True
 
@@ -234,16 +162,38 @@ def test_api_connection():
         return False
 
 
-if __name__ == '__main__':
-    import sys
+def parse_arguments():
+    """Parse command-line arguments"""
+    parser = argparse.ArgumentParser(
+        description='ActivExport OAuth2 authentication (Strava or Decathlon Coach).'
+    )
+    parser.add_argument(
+        'action',
+        nargs='?',
+        choices=['test'],
+        default=None,
+        help='Optional action: "test" to check API connection with saved tokens'
+    )
+    parser.add_argument(
+        '--provider',
+        choices=list(PROVIDERS),
+        default='strava',
+        help='Activity provider to authenticate with (default: strava)'
+    )
+    return parser.parse_args()
 
-    if len(sys.argv) > 1 and sys.argv[1] == 'test':
+
+if __name__ == '__main__':
+    args = parse_arguments()
+
+    if args.action == 'test':
         # Test mode: check if tokens exist and test connection
-        test_api_connection()
+        if not test_api_connection(args.provider):
+            sys.exit(1)
     else:
         # Initial authentication mode
-        if initial_authentication():
-            print("\nNext step: python activexport_auth.py test")
+        if initial_authentication(args.provider):
+            print(f"\nNext step: python activexport_auth.py --provider {args.provider} test")
         else:
             print("\n[X] Authentication failed")
             sys.exit(1)

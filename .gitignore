@@ -4,6 +4,9 @@
 
 # ActivExport tokens
 activexport_tokens.json
+activexport_tokens_strava.json
+activexport_tokens_decathcoach.json
+decathcoach_sports_cache.json
 
 # Personal data
 input/

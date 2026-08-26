@@ -63,11 +63,21 @@ activexport/
 ├── .env.example                        # Modèle fichier configuration
 ├── .gitignore                          # Fichiers à ignorer (Git)
 ├── requirements.txt                    # Dépendances Python
+├── activexport_providers.py            # Config/helpers partagés multi-providers (OAuth2)
 ├── activexport_auth.py                 # Script authentification
 ├── activexport_fetch_activities.py     # Récupération activités
 ├── activexport_get_activity_details.py # Détails activité
 └── README.md                           # Cette documentation
 ```
+
+### Providers Supportés
+
+ActivExport supporte 2 providers, sélectionnables via l'option `--provider` (défaut : `strava`) :
+
+| Provider | Valeur du flag | Remarques |
+|----------|-----------------|-----------|
+| Strava | `strava` (défaut) | Nécessite un **abonnement Strava payant actif** sur le compte propriétaire de l'application (politique Strava depuis juin 2026). |
+| Decathlon Coach | `decathcoach` | API "Sports Tracking Data" gratuite, nécessite une inscription préalable (voir plus bas). |
 
 ### Étape 2 : Installer les Dépendances Python
 
@@ -180,6 +190,26 @@ Le fichier `.env` est automatiquement protégé par `.gitignore`.
 
 ---
 
+### Étape 1bis : Application Decathlon Coach (optionnel, pour `--provider decathcoach`)
+
+**1. Demander l'accès à l'API**
+
+Remplir [ce formulaire d'inscription](https://forms.gle/4WKN7ihQBpyzMt389). Decathlon valide la demande et fournit, si acceptée :
+- une **API key**
+- un **Client ID** et **Client Secret** pour Decathlon Login (OAuth2)
+
+**2. Ajouter les identifiants dans `.env`**
+
+```bash
+DECATHLON_CLIENT_ID=VOTRE_CLIENT_ID
+DECATHLON_CLIENT_SECRET=VOTRE_CLIENT_SECRET
+DECATHLON_API_KEY=VOTRE_API_KEY
+```
+
+Référence : [documentation Sports Tracking Data API](https://github.com/Decathlon/sports-tracking-data-documentation).
+
+---
+
 ### Étape 3 : Authentification Initiale
 
 **1. Lancer le script d'authentification**
@@ -269,6 +299,15 @@ Afficher l'aide pour n'importe quel script :
 ```bash
 python activexport_fetch_activities.py --help
 python activexport_get_activity_details.py --help
+```
+
+### Choisir un Provider
+
+Tous les scripts acceptent une option `--provider` (`strava` ou `decathcoach`, défaut : `strava`). Authentifiez-vous et récupérez séparément par provider, par exemple :
+
+```bash
+python activexport_auth.py --provider decathcoach
+python activexport_fetch_activities.py --provider decathcoach -f json
 ```
 
 ---
@@ -578,6 +617,7 @@ python activexport_fetch_activities.py [OPTIONS] [RECHERCHE]
 - `-h, --help` : Afficher le message d'aide
 - `-f, --format FORMAT` : Format de sortie (json, csv, md). Peut être utilisé plusieurs fois
 - `-o, --output DIR` : Répertoire de sortie (défaut : `./output`)
+- `--provider {strava,decathcoach}` : Provider d'activités à utiliser (défaut : `strava`)
 
 **Exemples :**
 ```bash
@@ -621,6 +661,7 @@ python activexport_get_activity_details.py ACTIVITY_ID [OPTIONS]
 - `-h, --help` : Afficher le message d'aide
 - `-f, --format FORMAT` : Format de sortie (json, md). Peut être utilisé plusieurs fois
 - `-o, --output DIR` : Répertoire de sortie (défaut : `./output`)
+- `--provider {strava,decathcoach}` : Provider d'activités à utiliser (défaut : `strava`)
 
 **Exemples :**
 ```bash

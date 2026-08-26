@@ -1,34 +1,52 @@
 #!/usr/bin/env python3
 """
-ActivExport - Fetch activities from Strava API
+ActivExport - Fetch activities from a sport tracking provider
 Fetches all activities (complete history) and exports to multiple formats
+Supports multiple providers: Strava and Decathlon Coach
 """
 
 import os
 import json
 import csv
 import time
-import argparse
 from datetime import datetime
+import argparse
 import requests
-from activexport_auth import get_valid_access_token
+
+from activexport_providers import (
+    PROVIDERS,
+    get_provider_config,
+    get_valid_access_token,
+    get_auth_headers,
+)
 
 # Configuration
 DEFAULT_OUTPUT_DIR = './output'
-API_BASE = 'https://www.strava.com/api/v3'
 
 # Strava API limits
 RATE_LIMIT_15MIN = 100
 RATE_LIMIT_DAY = 1000
 
+# Decathlon Coach: root domain used to resolve relative referential URIs (e.g. "/v2/sports/121")
+DECATHLON_ROOT = 'https://api.decathlon.net/sportstrackingdata'
+DECATHLON_SPORTS_CACHE_FILE = 'decathcoach_sports_cache.json'
+
+# Decathlon Coach datatype codes used in "dataSummaries" (see referentials doc)
+DECATHLON_DATATYPE_DISTANCE = '5'
+DECATHLON_DATATYPE_DURATION = '24'
+DECATHLON_DATATYPE_ASCENT = '18'
+DECATHLON_DATATYPE_HR_AVG = '4'
+DECATHLON_DATATYPE_HR_MAX = '3'
+
 
 def parse_arguments():
     """Parse command-line arguments"""
     parser = argparse.ArgumentParser(
-        description='Fetch all activities from Strava API and export to multiple formats.',
+        description='Fetch all activities from a sport tracking provider and export to multiple formats.',
         epilog='''Examples:
   %(prog)s
   %(prog)s -f json csv
+  %(prog)s --provider decathcoach -f json
   %(prog)s "trail" -f json -o ./my_exports/''',
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -55,42 +73,94 @@ def parse_arguments():
         help=f'Output directory path (default: {DEFAULT_OUTPUT_DIR})'
     )
 
+    parser.add_argument(
+        '--provider',
+        choices=list(PROVIDERS),
+        default='strava',
+        help='Activity provider to fetch from (default: strava)'
+    )
+
     return parser.parse_args()
 
 
-def fetch_all_activities(page_size=200):
-    """
-    Fetches all athlete's activities
-    Strava API: max 200 activities per page
-    """
-    access_token = get_valid_access_token()
-    if not access_token:
-        print("[X] Unable to get valid token")
-        return None
+def _load_decathlon_sports_cache():
+    """Loads the local disk cache mapping Decathlon sport IDs to display names"""
+    if os.path.exists(DECATHLON_SPORTS_CACHE_FILE):
+        with open(DECATHLON_SPORTS_CACHE_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return {}
 
-    headers = {'Authorization': f'Bearer {access_token}'}
+
+def _save_decathlon_sports_cache(cache):
+    """Persists the sport ID -> name cache to disk"""
+    with open(DECATHLON_SPORTS_CACHE_FILE, 'w', encoding='utf-8') as f:
+        json.dump(cache, f, indent=2, ensure_ascii=False)
+
+
+def _resolve_decathlon_sport_names(sport_refs, headers):
+    """
+    Resolves a set of Decathlon sport references (e.g. "/v2/sports/121") to
+    their English display name, using a persistent local cache to minimize
+    API calls.
+    """
+    cache = _load_decathlon_sports_cache()
+    updated = False
+
+    for sport_ref in sport_refs:
+        if not sport_ref or sport_ref in cache:
+            continue
+        try:
+            response = requests.get(f'{DECATHLON_ROOT}{sport_ref}', headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            names = data.get('translatedNames', {})
+            cache[sport_ref] = names.get('en') or names.get('fr') or sport_ref
+            updated = True
+        except Exception:
+            cache[sport_ref] = sport_ref
+
+    if updated:
+        _save_decathlon_sports_cache(cache)
+
+    return cache
+
+
+def _normalize_decathlon_activity(activity, sport_names):
+    """Converts a raw Decathlon Coach activity into the common activity format"""
+    data_summaries = activity.get('dataSummaries', {})
+    sport_ref = activity.get('sport')
+    average_hr = data_summaries.get(DECATHLON_DATATYPE_HR_AVG)
+    duration = data_summaries.get(DECATHLON_DATATYPE_DURATION, activity.get('duration', 0))
+
+    return {
+        'id': activity.get('id'),
+        'name': activity.get('name', ''),
+        'sport_type': sport_names.get(sport_ref, sport_ref or 'Unknown'),
+        'start_date': activity.get('startdate'),
+        'distance': data_summaries.get(DECATHLON_DATATYPE_DISTANCE, 0),
+        'total_elevation_gain': data_summaries.get(DECATHLON_DATATYPE_ASCENT, 0),
+        'moving_time': duration,
+        'elapsed_time': activity.get('duration', duration),
+        'average_heartrate': average_hr,
+        'max_heartrate': data_summaries.get(DECATHLON_DATATYPE_HR_MAX),
+        'has_heartrate': average_hr is not None,
+    }
+
+
+def _fetch_strava_activities(headers, page_size):
+    """Fetches all activities from the Strava API (handles pagination and rate-limiting)"""
+    api_base = get_provider_config('strava')['api_base']
     all_activities = []
     page = 1
     request_count = 0
 
-    print("\n" + "="*60)
-    print("FETCHING ACTIVITIES FROM STRAVA")
-    print("="*60 + "\n")
-
     while True:
         print(f"[Page {page}] Fetching max {page_size} activities...")
 
-        params = {
-            'per_page': page_size,
-            'page': page
-        }
+        params = {'per_page': page_size, 'page': page}
 
         try:
-            response = requests.get(
-                f'{API_BASE}/athlete/activities',
-                headers=headers,
-                params=params
-            )
+            response = requests.get(f'{api_base}/athlete/activities', headers=headers, params=params)
             response.raise_for_status()
             request_count += 1
 
@@ -104,14 +174,12 @@ def fetch_all_activities(page_size=200):
             print(f"      -> {len(activities)} activities fetched")
             print(f"      Cumulative total: {len(all_activities)} activities\n")
 
-            # If fewer activities than requested = last page
             if len(activities) < page_size:
                 print(f"[OK] Last page reached\n")
                 break
 
             page += 1
 
-            # Pause to respect API limits (caution)
             if request_count % 10 == 0:
                 print(f"[PAUSE] 10 requests made, pausing 3s...\n")
                 time.sleep(3)
@@ -128,22 +196,107 @@ def fetch_all_activities(page_size=200):
             print(f"[X] Error: {e}")
             break
 
+    return all_activities, request_count
+
+
+def _fetch_decathlon_activities(headers, page_size):
+    """Fetches all activities from the Decathlon Coach API (handles pagination) and normalizes them"""
+    api_base = get_provider_config('decathcoach')['api_base']
+    raw_activities = []
+    page = 1
+    request_count = 0
+
+    while True:
+        print(f"[Page {page}] Fetching max {page_size} activities...")
+
+        params = {'page': page, 'limit': page_size}
+
+        try:
+            response = requests.get(f'{api_base}/activities', headers=headers, params=params)
+            response.raise_for_status()
+            request_count += 1
+
+            data = response.json()
+            activities = data.get('hydra:member', [])
+
+            if not activities:
+                print(f"[OK] No additional activities (end of pagination)\n")
+                break
+
+            raw_activities.extend(activities)
+            print(f"      -> {len(activities)} activities fetched")
+            print(f"      Cumulative total: {len(raw_activities)} activities\n")
+
+            if 'hydra:next' not in data.get('hydra:view', {}):
+                print(f"[OK] Last page reached\n")
+                break
+
+            page += 1
+
+            if request_count % 10 == 0:
+                print(f"[PAUSE] 10 requests made, pausing 3s...\n")
+                time.sleep(3)
+
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 429:
+                print(f"[X] API limit reached (429 Too Many Requests)")
+                print(f"    Waiting 1 minute...")
+                time.sleep(60)
+            else:
+                print(f"[X] HTTP Error: {e}")
+                break
+        except Exception as e:
+            print(f"[X] Error: {e}")
+            break
+
+    if not raw_activities:
+        return [], request_count
+
+    # Resolve sport names in as few API calls as possible (one per distinct sport)
+    unique_sport_refs = {a.get('sport') for a in raw_activities if a.get('sport')}
+    sport_names = _resolve_decathlon_sport_names(unique_sport_refs, headers)
+
+    activities = [_normalize_decathlon_activity(a, sport_names) for a in raw_activities]
+    return activities, request_count
+
+
+def fetch_all_activities(provider, page_size=200):
+    """
+    Fetches all athlete's activities from the given provider
+    Returns a list of activities normalized to a common format
+    """
+    access_token = get_valid_access_token(provider)
+    if not access_token:
+        print("[X] Unable to get valid token")
+        return None
+
+    headers = get_auth_headers(provider, access_token)
+
+    print("\n" + "="*60)
+    print(f"FETCHING ACTIVITIES FROM {get_provider_config(provider)['label'].upper()}")
+    print("="*60 + "\n")
+
+    if provider == 'strava':
+        activities, request_count = _fetch_strava_activities(headers, page_size)
+    else:
+        activities, request_count = _fetch_decathlon_activities(headers, page_size)
+
     print("="*60)
-    print(f"TOTAL: {len(all_activities)} activities fetched")
+    print(f"TOTAL: {len(activities)} activities fetched")
     print(f"API requests used: {request_count}")
     print("="*60 + "\n")
 
-    return all_activities
+    return activities
 
 
-def export_to_json(activities, filepath):
+def export_to_json(activities, filepath, source_label='Strava API v3'):
     """Export activities to JSON format"""
     # Add metadata
     data = {
         'metadata': {
             'export_date': datetime.now().isoformat(),
             'total_activities': len(activities),
-            'source': 'Strava API v3'
+            'source': source_label
         },
         'activities': activities
     }
@@ -257,7 +410,7 @@ def export_to_markdown(activities, filepath):
     print(f"[OK] Markdown exported to: {filepath}")
 
 
-def save_activities(activities, formats, output_dir):
+def save_activities(activities, formats, output_dir, provider='strava'):
     """Save activities to specified formats"""
     if not activities:
         print("[X] No activities to save")
@@ -281,7 +434,8 @@ def save_activities(activities, formats, output_dir):
     # Export to each format
     if 'json' in normalized_formats:
         filepath = os.path.join(output_dir, f'activexport_activities_{timestamp}.json')
-        export_to_json(activities, filepath)
+        source_label = f"{get_provider_config(provider)['label']} API"
+        export_to_json(activities, filepath, source_label)
 
     if 'csv' in normalized_formats:
         filepath = os.path.join(output_dir, f'activexport_activities_{timestamp}.csv')
@@ -316,7 +470,7 @@ def analyze_activities(activities):
 
     # Covered period
     dates = [datetime.fromisoformat(a['start_date'].replace('Z', '+00:00'))
-             for a in activities if 'start_date' in a]
+             for a in activities if a.get('start_date')]
 
     if dates:
         print(f"\nCovered period:")
@@ -359,7 +513,7 @@ if __name__ == '__main__':
     args = parse_arguments()
 
     # Fetch all activities
-    activities = fetch_all_activities()
+    activities = fetch_all_activities(args.provider)
 
     if activities:
         # Filter by search term if provided
@@ -371,7 +525,7 @@ if __name__ == '__main__':
 
         # Save to specified formats if any
         if args.formats:
-            save_activities(export_activities, args.formats, args.output)
+            save_activities(export_activities, args.formats, args.output, args.provider)
 
         # Always display analysis
         analyze_activities(export_activities)

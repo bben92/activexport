@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-ActivExport - Fetch Strava activity details
+ActivExport - Fetch a single activity's details
 Exports activity details to multiple formats
+Supports multiple providers: Strava and Decathlon Coach
 """
 
 import os
@@ -9,11 +10,28 @@ import json
 import argparse
 from datetime import datetime
 import requests
-from activexport_auth import get_valid_access_token
+
+from activexport_providers import (
+    PROVIDERS,
+    get_provider_config,
+    get_valid_access_token,
+    get_auth_headers,
+)
 
 # Configuration
 DEFAULT_OUTPUT_DIR = './output'
-API_BASE = 'https://www.strava.com/api/v3'
+
+# Decathlon Coach: root domain used to resolve relative referential URIs (e.g. "/v2/sports/121")
+DECATHLON_ROOT = 'https://api.decathlon.net/sportstrackingdata'
+
+# Decathlon Coach datatype codes used in "dataSummaries" (see referentials doc)
+DECATHLON_DATATYPE_DISTANCE = '5'
+DECATHLON_DATATYPE_DURATION = '24'
+DECATHLON_DATATYPE_ASCENT = '18'
+DECATHLON_DATATYPE_ELEVATION_MIN = '16'
+DECATHLON_DATATYPE_ELEVATION_MAX = '15'
+DECATHLON_DATATYPE_HR_AVG = '4'
+DECATHLON_DATATYPE_HR_MAX = '3'
 
 
 def parse_arguments():
@@ -23,7 +41,7 @@ def parse_arguments():
         epilog='''Examples:
   %(prog)s 6018412458
   %(prog)s 6018412458 -f json md
-  %(prog)s 6018412458 -f json -o ./my_exports/''',
+  %(prog)s --provider decathcoach eu205bc29d9975f27cfb -f json''',
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
 
@@ -47,25 +65,76 @@ def parse_arguments():
         help=f'Output directory path (default: {DEFAULT_OUTPUT_DIR})'
     )
 
+    parser.add_argument(
+        '--provider',
+        choices=list(PROVIDERS),
+        default='strava',
+        help='Activity provider to fetch from (default: strava)'
+    )
+
     return parser.parse_args()
 
 
-def get_activity_details(activity_id):
-    """Fetches complete details of an activity"""
-    access_token = get_valid_access_token()
+def _resolve_decathlon_sport_name(sport_ref, headers):
+    """Resolves a Decathlon sport reference (e.g. '/v2/sports/121') to its display name"""
+    if not sport_ref:
+        return 'Unknown'
+    try:
+        response = requests.get(f'{DECATHLON_ROOT}{sport_ref}', headers=headers)
+        response.raise_for_status()
+        names = response.json().get('translatedNames', {})
+        return names.get('en') or names.get('fr') or sport_ref
+    except Exception:
+        return sport_ref
+
+
+def _normalize_decathlon_activity(activity, headers):
+    """Converts a raw Decathlon Coach activity into the common activity details format"""
+    data_summaries = activity.get('dataSummaries', {})
+    average_hr = data_summaries.get(DECATHLON_DATATYPE_HR_AVG)
+    duration = data_summaries.get(DECATHLON_DATATYPE_DURATION, activity.get('duration', 0))
+
+    return {
+        'id': activity.get('id'),
+        'name': activity.get('name', ''),
+        'sport_type': _resolve_decathlon_sport_name(activity.get('sport'), headers),
+        'start_date': activity.get('startdate'),
+        'distance': data_summaries.get(DECATHLON_DATATYPE_DISTANCE, 0),
+        'total_elevation_gain': data_summaries.get(DECATHLON_DATATYPE_ASCENT, 0),
+        'moving_time': duration,
+        'elapsed_time': activity.get('duration', duration),
+        'has_heartrate': average_hr is not None,
+        'average_heartrate': average_hr,
+        'max_heartrate': data_summaries.get(DECATHLON_DATATYPE_HR_MAX),
+        'elev_low': data_summaries.get(DECATHLON_DATATYPE_ELEVATION_MIN),
+        'elev_high': data_summaries.get(DECATHLON_DATATYPE_ELEVATION_MAX),
+        'average_cadence': None,  # not exposed as an average datatype by the API
+        'gear': None,  # Decathlon Coach exposes a list of "equipments" refs, not a single named gear
+        'description': activity.get('comment'),
+    }
+
+
+def get_activity_details(provider, activity_id):
+    """Fetches complete details of an activity from the given provider"""
+    config = get_provider_config(provider)
+    access_token = get_valid_access_token(provider)
     if not access_token:
         print("[X] Unable to get valid token")
         return None
 
-    headers = {'Authorization': f'Bearer {access_token}'}
+    headers = get_auth_headers(provider, access_token)
 
     try:
         response = requests.get(
-            f'{API_BASE}/activities/{activity_id}',
+            f'{config["api_base"]}/activities/{activity_id}',
             headers=headers
         )
         response.raise_for_status()
-        return response.json()
+        raw_activity = response.json()
+
+        if provider == 'decathcoach':
+            return _normalize_decathlon_activity(raw_activity, headers)
+        return raw_activity
 
     except Exception as e:
         print(f"[X] Error: {e}")
@@ -278,7 +347,7 @@ if __name__ == '__main__':
     args = parse_arguments()
 
     # Fetch activity details
-    activity = get_activity_details(args.activity_id)
+    activity = get_activity_details(args.provider, args.activity_id)
 
     if activity:
         # Always display to stdout
